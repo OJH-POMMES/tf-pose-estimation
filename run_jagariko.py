@@ -3,10 +3,13 @@ import logging
 import time
 
 import cv2
-import numpy as np
+
+import settings
 
 from tf_pose.estimator import TfPoseEstimator
 from tf_pose.networks import get_graph_path, model_wh
+
+from kintone_handler import KintoneHandler
 
 logger = logging.getLogger('TfPoseEstimator-WebCam')
 logger.setLevel(logging.DEBUG)
@@ -17,6 +20,7 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 fps_time = 0
+
 
 def str2bool(v):
     return v.lower() in ("yes", "true", "t", "1")
@@ -49,12 +53,17 @@ if __name__ == '__main__':
     cam = cv2.VideoCapture(args.camera)
     ret_val, image = cam.read()
     logger.info('cam image=%dx%d' % (image.shape[1], image.shape[0]))
+    
+    # create kintone instance
+    kintone = KintoneHandler(settings.KINTONE_TOKEN, settings.KINTONE_DOMAIN, app=int(settings.KINTONE_APP))
+    tmp_score = 0
 
     while True:
         ret_val, image = cam.read()
 
         logger.debug('image process+')
         humans = e.inference(image, resize_to_default=(w > 0 and h > 0), upsample_size=args.resize_out_ratio)
+        print(humans)
 
         logger.debug('postprocess+')
         image = TfPoseEstimator.draw_humans(image, humans, imgcopy=False)
@@ -62,14 +71,18 @@ if __name__ == '__main__':
         logger.debug('show+')
         cv2.putText(image,
                     "FPS: %f" % (1.0 / (time.time() - fps_time)),
-                    (10, 10),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                    (10, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5,
                     (0, 255, 0), 2)
         cv2.imshow('tf-pose-estimation result', image)
         fps_time = time.time()
         if cv2.waitKey(1) == 27:
             break
+        if kintone.register_kintone({'score': tmp_score, 'state': 'Bad', 'file': []}):
+            tmp_score += 1
+        else:
+            raise(ConnectionError)
         logger.debug('finished+')
 
-        time.sleep(5)
+        time.sleep(1)
 
     cv2.destroyAllWindows()
