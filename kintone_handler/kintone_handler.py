@@ -118,8 +118,8 @@ class KintoneHandler:
 
 if __name__ == '__main__':
     import json
-    token = '7aNqOH20edyZ6OYfiGm3VNsTtRKSxv0TafShe9Oc'
-    domain = 'devqkeccp.cybozu.com'
+    token = ''
+    domain = ''
 
     k = KintoneHandler(token, domain, app=2)
     data = k.get_kintone()
